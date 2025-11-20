@@ -1048,10 +1048,12 @@ CREATE TABLE `carrier` (
   `create_time` datetime DEFAULT NULL COMMENT 'mes空载具到达立体库入料口',
   `code` varchar(3000) DEFAULT NULL,
   `time` datetime DEFAULT NULL,
+  `bill_out_detail_id` int(11) DEFAULT NULL COMMENT '关联的出库明细ID',
   PRIMARY KEY (`carrier_id`) USING BTREE,
   KEY `carrier_id_PK` (`carrier_id`) USING BTREE,
   KEY `carrier_state` (`carrier_state`) USING BTREE,
-  KEY `carrier_code` (`carrier_code`) USING BTREE
+  KEY `carrier_code` (`carrier_code`) USING BTREE,
+  KEY `carrier_bill_out_detail_id` (`bill_out_detail_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
 
 -- ----------------------------
@@ -5701,6 +5703,26 @@ CREATE TABLE `worker_order_issue_time` (
 -- Records of worker_order_issue_time
 -- ----------------------------
 INSERT INTO `worker_order_issue_time` VALUES ('1', '00:00:00', '04:00:00', '08:00:00', '12:00:00', '16:00:00', '20:00:00', '1', '10', '1', '1', '15', '1');
+
+-- ----------------------------
+-- Table structure for warehouse_ranking_snapshot
+-- ----------------------------
+DROP TABLE IF EXISTS `warehouse_ranking_snapshot`;
+CREATE TABLE `warehouse_ranking_snapshot` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `rank_type` varchar(32) NOT NULL COMMENT 'inventory|inbound|outbound',
+  `period_type` varchar(16) NOT NULL COMMENT 'MONTH|YEAR',
+  `period_value` varchar(16) NOT NULL COMMENT 'YYYY-MM 或 YYYY',
+  `top_order` int(11) NOT NULL COMMENT '排名顺序',
+  `item_code` varchar(64) DEFAULT NULL,
+  `item_name` varchar(255) DEFAULT NULL,
+  `quantity` decimal(18,4) DEFAULT NULL,
+  `unit` varchar(32) DEFAULT NULL,
+  `warehouse_name` varchar(128) DEFAULT NULL,
+  `snapshot_time` datetime NOT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_rank_period` (`rank_type`,`period_type`,`period_value`,`top_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='仓库排名快照';
 
 -- ----------------------------
 -- View structure for 库存

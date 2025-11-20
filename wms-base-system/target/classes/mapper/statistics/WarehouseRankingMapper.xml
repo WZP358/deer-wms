@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deer.wms.base.system.dao.statistics.WarehouseRankingMapper">
+
+    <resultMap id="RankRow" type="com.deer.wms.base.system.model.statistics.WarehouseRankingRow">
+        <result column="item_code" property="itemCode"/>
+        <result column="item_name" property="itemName"/>
+        <result column="total_quantity" property="quantity"/>
+        <result column="unit" property="unit"/>
+    </resultMap>
+
+    <select id="selectInventoryRanking" resultMap="RankRow">
+        SELECT
+            bi.item_code,
+            coalesce(ii.item_name, bi.item_code) AS item_name,
+            ii.unit,
+            SUM(GREATEST(bi.quantity - IFNULL(bi.forecast_stock_quantity, 0), 0)) AS total_quantity
+        FROM box_item bi
+        LEFT JOIN item_info ii ON ii.item_code = bi.item_code
+        WHERE bi.quantity > 0
+          AND bi.item_code IS NOT NULL
+        GROUP BY bi.item_code, ii.item_name, ii.unit
+        ORDER BY total_quantity DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectInboundRanking" resultMap="RankRow">
+        SELECT
+            ii.item_code,
+            COALESCE(ii.item_name, ii.item_code) AS item_name,
+            ii.unit,
+            SUM(IFNULL(bir.accept_quantity, 0)) AS total_quantity
+        FROM bill_in_record bir
+        LEFT JOIN bill_in_detail bid ON bid.bill_in_detail_id = bir.bill_in_detail_id
+        LEFT JOIN item_info ii ON ii.inventory_item_id = bid.item_id
+        WHERE bir.accept_time IS NOT NULL
+          AND ii.item_code IS NOT NULL
+        <if test="startTime != null and startTime != ''">
+            AND bir.accept_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND bir.accept_time &lt; #{endTime}
+        </if>
+        GROUP BY ii.item_code, ii.item_name, ii.unit
+        ORDER BY total_quantity DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectOutboundRanking" resultMap="RankRow">
+        SELECT
+            ii.item_code,
+            COALESCE(ii.item_name, ii.item_code) AS item_name,
+            ii.unit,
+            SUM(IFNULL(pt.pick_quantity, 0)) AS total_quantity
+        FROM pick_task pt
+        LEFT JOIN bill_out_detail bod ON bod.bill_out_detail_id = pt.bill_out_detail_id
+        LEFT JOIN item_info ii ON ii.item_code = bod.item_code
+        WHERE pt.out_time IS NOT NULL
+          AND pt.pick_state = 4
+          AND ii.item_code IS NOT NULL
+        <if test="startTime != null and startTime != ''">
+            AND pt.out_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND pt.out_time &lt; #{endTime}
+        </if>
+        GROUP BY ii.item_code, ii.item_name, ii.unit
+        ORDER BY total_quantity DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
+

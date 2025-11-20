@@ -639,7 +639,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="subInventoryId != null and subInventoryId != -1"> and bi.sub_inventory_id = #{subInventoryId}</if>
         <if test="itemCode != null  and itemCode != '' "> and bi.item_code = #{itemCode}</if>
         <if test="batch != null  and batch != '' "> and bi.batch = #{batch}</if>
-        group by bi.item_code,bi.batch,bi.sub_inventory_id
+        group by
+        bi.item_code,
+        bi.batch,
+        bi.exp,
+        bi.sub_inventory_id,
+        ii.item_name,
+        ii.inventory_item_id,
+        sii.sub_inventory_code,
+        sii.slotting,
+        sii.sub_inventory_name
     </select>
 
     <select id="findListTwo" parameterType="BoxItemCriteria" resultMap="BoxItemDtoResult">

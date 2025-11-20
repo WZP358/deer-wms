@@ -111,6 +111,44 @@
         .box-card {
             width: 480px;
         }
+
+        .ranking-board{
+            margin-top:20px;
+            padding:20px;
+            border-radius:8px;
+            background:#fff;
+            box-shadow:0 2px 18px rgba(0,0,0,0.05);
+        }
+        .ranking-toolbar{
+            margin-bottom:15px;
+        }
+        .ranking-toolbar .form-control{
+            display:inline-block;
+            width:auto;
+            margin-right:10px;
+        }
+        .ranking-toolbar label{
+            margin-right:6px;
+            font-weight:600;
+        }
+        .ranking-card{
+            background:#fafafa;
+            border-radius:8px;
+            padding:10px 10px 0;
+            margin-bottom:15px;
+            border:1px solid #f0f0f0;
+        }
+        .ranking-card-title{
+            font-size:15px;
+            font-weight:600;
+            color:#333;
+            padding-left:6px;
+            margin-bottom:4px;
+        }
+        .ranking-chart{
+            width:100%;
+            height:320px;
+        }
     </style>
     <th:block th:include="include :: header('首页')" />
 </head>
@@ -365,6 +403,43 @@
         </div>
 
     </div>-->
+    <div class="ranking-board">
+        <div class="ranking-toolbar">
+            <div class="form-inline">
+                <label for="rankingPeriodType">统计周期</label>
+                <select id="rankingPeriodType" class="form-control input-sm">
+                    <option value="MONTH">按月</option>
+                    <option value="YEAR">按年</option>
+                </select>
+                <input type="month" id="rankingMonth" class="form-control input-sm" />
+                <input type="number" id="rankingYear" class="form-control input-sm" min="2000" max="2100" style="display:none;width:120px;" />
+                <label for="rankingLimit">显示前</label>
+                <input type="number" id="rankingLimit" class="form-control input-sm" min="3" max="30" value="10" style="width:80px;" />
+                <span>名</span>
+                <button type="button" id="rankingQueryBtn" class="btn btn-primary btn-sm">刷新排行榜</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-xs-12 col-sm-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-title">仓库库存数量排行</div>
+                    <div id="inventoryRankingChart" class="ranking-chart"></div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-title">转入商品数量排行</div>
+                    <div id="inboundRankingChart" class="ranking-chart"></div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-title">转出商品数量排行</div>
+                    <div id="outboundRankingChart" class="ranking-chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <div th:include="include::footer"></div>
     <script th:src="@{/js/jquery.min.js}"></script>
@@ -486,6 +561,196 @@
         };
         myChart2.setOption(option1, true);
 
+        var rankingCharts = {};
+        var rankingState = {
+            periodType: 'MONTH',
+            limit: 10,
+            defaultMonth: '',
+            defaultYear: ''
+        };
+
+        var initRankingBoard = function (){
+            rankingState.defaultMonth = formatCurrentMonth();
+            rankingState.defaultYear = new Date().getFullYear().toString();
+            $('#rankingMonth').val(rankingState.defaultMonth);
+            $('#rankingYear').val(rankingState.defaultYear);
+            $('#rankingLimit').val(rankingState.limit);
+            $('#rankingPeriodType').val(rankingState.periodType);
+            toggleRankingPeriodInput();
+            rankingCharts.inventory = echarts.init(document.getElementById('inventoryRankingChart'));
+            rankingCharts.inbound = echarts.init(document.getElementById('inboundRankingChart'));
+            rankingCharts.outbound = echarts.init(document.getElementById('outboundRankingChart'));
+            $('#rankingPeriodType').on('change', function (){
+                rankingState.periodType = $(this).val();
+                toggleRankingPeriodInput();
+                loadRankingDashboard(true);
+            });
+            $('#rankingLimit').on('change', function (){
+                var value = parseInt($(this).val(),10);
+                if(isNaN(value) || value < 3){ value = 3; }
+                if(value > 30){ value = 30; }
+                rankingState.limit = value;
+                $(this).val(value);
+                loadRankingDashboard(false);
+            });
+            $('#rankingQueryBtn').on('click', function (){
+                loadRankingDashboard(true);
+            });
+            $('#rankingMonth, #rankingYear').on('change', function (){
+                loadRankingDashboard(true);
+            });
+            window.addEventListener('resize', function (){
+                Object.keys(rankingCharts).forEach(function (key){
+                    if(rankingCharts[key]){
+                        rankingCharts[key].resize();
+                    }
+                });
+            });
+            loadRankingDashboard(false);
+        };
+
+        var toggleRankingPeriodInput = function (){
+            if(rankingState.periodType === 'YEAR'){
+                $('#rankingMonth').hide();
+                $('#rankingYear').show();
+            }else{
+                $('#rankingYear').hide();
+                $('#rankingMonth').show();
+            }
+        };
+
+        var buildRankingPayload = function (){
+            var payload = {
+                limit: rankingState.limit,
+                periodType: rankingState.periodType
+            };
+            if(rankingState.periodType === 'YEAR'){
+                var yearVal = $('#rankingYear').val() || rankingState.defaultYear;
+                $('#rankingYear').val(yearVal);
+                payload.periodValue = yearVal;
+            }else{
+                var monthVal = $('#rankingMonth').val() || rankingState.defaultMonth;
+                $('#rankingMonth').val(monthVal);
+                payload.periodValue = monthVal;
+            }
+            return payload;
+        };
+
+        var loadRankingDashboard = function (forceRefresh){
+            if(!rankingCharts.inventory){
+                return;
+            }
+            var payload = buildRankingPayload();
+            if(forceRefresh){
+                payload.refresh = true;
+            }
+            $.ajax({
+                url: "/system/ranking/dashboard",
+                data: payload,
+                success: function (response){
+                    if(response.code === 200){
+                        var data = response.data || {};
+                        renderRankingChart(rankingCharts.inventory, data.inventory || [], "仓库库存数量排行", payload.periodValue);
+                        renderRankingChart(rankingCharts.inbound, data.inbound || [], "转入商品数量排行", payload.periodValue);
+                        renderRankingChart(rankingCharts.outbound, data.outbound || [], "转出商品数量排行", payload.periodValue);
+                    }else{
+                        $.modal && $.modal.alertError && $.modal.alertError(response.msg || "获取排行榜失败");
+                    }
+                },
+                error: function (){
+                    $.modal && $.modal.alertError ? $.modal.alertError("获取排行榜失败") : alert("获取排行榜失败");
+                }
+            });
+        };
+
+        var renderRankingChart = function (chart, data, title, periodValue){
+            if(!chart){
+                return;
+            }
+            var names = [];
+            var values = [];
+            (data || []).forEach(function (item){
+                names.push(item.itemName || item.itemCode || "未命名");
+                values.push(item.quantity != null ? item.quantity : 0);
+            });
+            if(names.length === 0){
+                names = ["暂无数据"];
+                values = [0];
+            }
+            var option = {
+                title: {
+                    text: title,
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 15,
+                        fontWeight: 'bold'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    }
+                },
+                toolbox: {
+                    feature: {
+                        saveAsImage: {
+                            title: '下载图片',
+                            name: title + "-" + periodValue
+                        }
+                    }
+                },
+                grid: {
+                    left: '4%',
+                    right: '4%',
+                    bottom: '3%',
+                    top: 50,
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#666' },
+                    splitLine: {
+                        show: true,
+                        lineStyle: {
+                            type: 'dashed'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: names,
+                    axisLabel: {
+                        color: '#666',
+                        formatter: function (value){
+                            return value && value.length > 8 ? value.substring(0,8) + '…' : value;
+                        }
+                    }
+                },
+                series: [{
+                    name: '数量',
+                    type: 'bar',
+                    data: values,
+                    barWidth: '55%',
+                    itemStyle: {
+                        color: '#5ed5d1'
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{c}',
+                        position: 'right'
+                    }
+                }]
+            };
+            chart.setOption(option, true);
+        };
+
+        var formatCurrentMonth = function (){
+            var date = new Date();
+            var month = date.getMonth() + 1;
+            return date.getFullYear() + "-" + (month < 10 ? ("0" + month) : month);
+        };
+
         var getCellOccupyRatio = function(){
             $.ajax({
                 cache : true,
@@ -543,11 +808,13 @@
         window.onload = function () {
             getCellOccupyRatio();
             getTotal();
+            initRankingBoard();
         }
 
         setInterval(function() {
             getCellOccupyRatio();
             getTotal();
+            loadRankingDashboard(false);
         },1000*60*60*12);
     </script>
 </body>

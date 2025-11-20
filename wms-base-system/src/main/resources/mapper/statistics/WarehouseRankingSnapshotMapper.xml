@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deer.wms.base.system.dao.statistics.WarehouseRankingSnapshotMapper">
+
+    <resultMap id="BaseResultMap" type="com.deer.wms.base.system.model.statistics.WarehouseRankingSnapshot">
+        <id column="id" property="id"/>
+        <result column="rank_type" property="rankType"/>
+        <result column="period_type" property="periodType"/>
+        <result column="period_value" property="periodValue"/>
+        <result column="top_order" property="topOrder"/>
+        <result column="item_code" property="itemCode"/>
+        <result column="item_name" property="itemName"/>
+        <result column="quantity" property="quantity"/>
+        <result column="unit" property="unit"/>
+        <result column="warehouse_name" property="warehouseName"/>
+        <result column="snapshot_time" property="snapshotTime"/>
+    </resultMap>
+
+    <select id="selectPeriod" resultMap="BaseResultMap">
+        select
+            id,
+            rank_type,
+            period_type,
+            period_value,
+            top_order,
+            item_code,
+            item_name,
+            quantity,
+            unit,
+            warehouse_name,
+            snapshot_time
+        from warehouse_ranking_snapshot
+        where rank_type = #{rankType}
+          and period_type = #{periodType}
+          and period_value = #{periodValue}
+        order by top_order asc
+    </select>
+
+    <delete id="deletePeriod">
+        delete from warehouse_ranking_snapshot
+        where rank_type = #{rankType}
+          and period_type = #{periodType}
+          and period_value = #{periodValue}
+    </delete>
+
+    <insert id="batchInsert">
+        insert into warehouse_ranking_snapshot
+        (rank_type, period_type, period_value, top_order, item_code, item_name, quantity, unit, warehouse_name, snapshot_time)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.rankType}, #{item.periodType}, #{item.periodValue}, #{item.topOrder},
+             #{item.itemCode}, #{item.itemName}, #{item.quantity}, #{item.unit},
+             #{item.warehouseName}, #{item.snapshotTime})
+        </foreach>
+    </insert>
+
+</mapper>
+
