@@ -1,12 +1,30 @@
 self.onmessage = function(e) {
     const { type, data } = e.data;
-    
+
     if (type === "findPath") {
         const path = findShortestPath(data.grid, data.start, data.end, data.allowDiagonal);
         self.postMessage({ type: "pathResult", path });
-    } else if (type === "optimizeRoute") {
+        return;
+    }
+
+    if (type === "optimizeRoute") {
         const result = optimizeMultiPointRoute(data.grid, data.start, data.targets, data.allowDiagonal, data.saParams);
         self.postMessage({ type: "routeResult", result });
+        return;
+    }
+
+    // Fallback for legacy manager messages without explicit type
+    if (e.data && e.data.entryPoint && e.data.grid && e.data.targets) {
+        const options = e.data.options || {};
+        const result = optimizeMultiPointRoute(e.data.grid, e.data.entryPoint, e.data.targets, options.allowDiagonal, options);
+        self.postMessage({
+            success: result.success,
+            path: result.path,
+            visitOrder: result.orderedTargets || [],
+            totalDistance: result.distance,
+            optimizedIndices: (result.order || []).map(idx => idx + 1),
+            error: result.success ? null : '路径计算失败'
+        });
     }
 };
 
@@ -65,64 +83,90 @@ function findShortestPath(grid, start, end, allowDiagonal) {
 }
 
 function optimizeMultiPointRoute(grid, start, targets, allowDiagonal, saParams) {
-    const initialTemp = saParams.initialTemp || 1000;
-    const coolingRate = saParams.coolingRate || 0.995;
-    const minTemp = saParams.minTemp || 1;
-    const maxIterations = saParams.maxIterations || 5000;
+    const config = normalizeSaOptions(saParams);
     
-    if (targets.length === 0) return { path: [start], distance: 0, order: [] };
+    if (!targets || targets.length === 0) {
+        return { success: true, path: [start], distance: 0, order: [], orderedTargets: [] };
+    }
+
     if (targets.length === 1) {
         const path = findShortestPath(grid, start, targets[0], allowDiagonal);
         return { 
+            success: Boolean(path),
             path: path || [start], 
-            distance: path ? path.length - 1 : 0,
-            order: [0]
+            distance: path ? path.length - 1 : Infinity,
+            order: [0],
+            orderedTargets: [targets[0]]
         };
     }
     
     const distanceMatrix = buildDistanceMatrix(grid, start, targets, allowDiagonal);
-    
-    var currentOrder = [];
-    for (var i = 0; i < targets.length; i++) {
-        currentOrder.push(i);
+    let currentOrder = buildInitialOrder(distanceMatrix, targets.length);
+    if (currentOrder.length === 0) {
+        currentOrder = targets.map((_, idx) => idx);
     }
-    var currentDistance = calculateTotalDistance(currentOrder, distanceMatrix);
-    var bestOrder = currentOrder.slice();
-    var bestDistance = currentDistance;
+
+    let currentDistance = calculateTotalDistance(currentOrder, distanceMatrix);
+    let bestOrder = currentOrder.slice();
+    let bestDistance = currentDistance;
     
-    var temp = initialTemp;
-    var iterations = 0;
+    let temp = config.initialTemp;
+    let iterations = 0;
+    let stagnationCounter = 0;
     
-    while (temp > minTemp && iterations < maxIterations) {
-        const newOrder = mutateOrder(currentOrder);
+    while (temp > config.minTemp && iterations < config.maxIterations) {
+        const newOrder = mutateOrder(currentOrder, config.twoOptProbability);
         const newDistance = calculateTotalDistance(newOrder, distanceMatrix);
         
         const delta = newDistance - currentDistance;
-        
-        if (delta < 0 || Math.random() < Math.exp(-delta / temp)) {
+        if (delta < 0 || Math.random() < Math.exp(-delta / Math.max(temp, 1e-9))) {
             currentOrder = newOrder;
             currentDistance = newDistance;
             
             if (currentDistance < bestDistance) {
                 bestOrder = currentOrder.slice();
                 bestDistance = currentDistance;
+                stagnationCounter = 0;
+            } else {
+                stagnationCounter++;
             }
+        } else {
+            stagnationCounter++;
         }
         
-        temp *= coolingRate;
+        if (stagnationCounter > config.stagnationLimit) {
+            currentOrder = localRefinement(currentOrder, distanceMatrix);
+            currentDistance = calculateTotalDistance(currentOrder, distanceMatrix);
+            stagnationCounter = 0;
+            temp *= 0.9;
+            continue;
+        }
+        
+        temp *= config.coolingRate;
         iterations++;
     }
+
+    if (stagnationCounter > 0) {
+        const refinedOrder = localRefinement(bestOrder, distanceMatrix);
+        const refinedDistance = calculateTotalDistance(refinedOrder, distanceMatrix);
+        if (refinedDistance < bestDistance) {
+            bestOrder = refinedOrder;
+            bestDistance = refinedDistance;
+        }
+    }
     
-    var orderedTargets = [];
-    for (var i = 0; i < bestOrder.length; i++) {
+    const orderedTargets = [];
+    for (let i = 0; i < bestOrder.length; i++) {
         orderedTargets.push(targets[bestOrder[i]]);
     }
     const fullPath = buildFullPath(grid, start, orderedTargets, allowDiagonal);
     
     return {
+        success: Number.isFinite(bestDistance),
         path: fullPath,
         distance: bestDistance,
-        order: bestOrder
+        order: bestOrder,
+        orderedTargets
     };
 }
 
@@ -155,6 +199,10 @@ function buildDistanceMatrix(grid, start, targets, allowDiagonal) {
 }
 
 function calculateTotalDistance(order, distanceMatrix) {
+    if (!order || order.length === 0) {
+        return 0;
+    }
+
     var total = distanceMatrix[0][order[0] + 1];
     
     for (var i = 0; i < order.length - 1; i++) {
@@ -164,14 +212,101 @@ function calculateTotalDistance(order, distanceMatrix) {
     return total;
 }
 
-function mutateOrder(order) {
-    var newOrder = order.slice();
-    const i = Math.floor(Math.random() * newOrder.length);
-    const j = Math.floor(Math.random() * newOrder.length);
-    var temp = newOrder[i];
-    newOrder[i] = newOrder[j];
-    newOrder[j] = temp;
+function buildInitialOrder(distanceMatrix, targetCount) {
+    const order = [];
+    const remaining = [];
+    for (let i = 0; i < targetCount; i++) {
+        remaining.push(i);
+    }
+
+    let currentIndex = 0; // start point in matrix
+    while (remaining.length > 0) {
+        let bestIdx = 0;
+        let bestDistance = Infinity;
+
+        for (let i = 0; i < remaining.length; i++) {
+            const candidate = remaining[i];
+            const distance = distanceMatrix[currentIndex][candidate + 1];
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIdx = i;
+            }
+        }
+
+        const [nextTarget] = remaining.splice(bestIdx, 1);
+        order.push(nextTarget);
+        currentIndex = nextTarget + 1;
+    }
+
+    return order;
+}
+
+function mutateOrder(order, twoOptProbability) {
+    const newOrder = order.slice();
+    if (newOrder.length < 3 || Math.random() > twoOptProbability) {
+        const i = Math.floor(Math.random() * newOrder.length);
+        const j = Math.floor(Math.random() * newOrder.length);
+        const temp = newOrder[i];
+        newOrder[i] = newOrder[j];
+        newOrder[j] = temp;
+        return newOrder;
+    }
+
+    const i = Math.floor(Math.random() * (newOrder.length - 1));
+    const j = i + 1 + Math.floor(Math.random() * (newOrder.length - i - 1));
+    return twoOptSwap(newOrder, i, j);
+}
+
+function twoOptSwap(order, i, k) {
+    const newOrder = order.slice();
+    while (i < k) {
+        const temp = newOrder[i];
+        newOrder[i] = newOrder[k];
+        newOrder[k] = temp;
+        i++;
+        k--;
+    }
     return newOrder;
+}
+
+function localRefinement(order, distanceMatrix) {
+    if (order.length < 4) {
+        return order.slice();
+    }
+
+    let bestOrder = order.slice();
+    let improved = true;
+
+    while (improved) {
+        improved = false;
+        for (let i = 0; i < bestOrder.length - 2; i++) {
+            for (let j = i + 1; j < bestOrder.length - 1; j++) {
+                const candidate = twoOptSwap(bestOrder.slice(), i, j);
+                if (calculateTotalDistance(candidate, distanceMatrix) < calculateTotalDistance(bestOrder, distanceMatrix)) {
+                    bestOrder = candidate;
+                    improved = true;
+                    break;
+                }
+            }
+            if (improved) {
+                break;
+            }
+        }
+    }
+
+    return bestOrder;
+}
+
+function normalizeSaOptions(saParams) {
+    const params = saParams || {};
+    return {
+        initialTemp: params.initialTemp || 800,
+        coolingRate: params.coolingRate || 0.992,
+        minTemp: params.minTemp || 0.1,
+        maxIterations: params.maxIterations || 20000,
+        twoOptProbability: params.twoOptProbability || 0.4,
+        stagnationLimit: params.stagnationLimit || 800
+    };
 }
 
 function buildFullPath(grid, start, orderedTargets, allowDiagonal) {

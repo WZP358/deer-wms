@@ -22,7 +22,6 @@
         #content-main.max { height: calc(100% - 110px); overflow: hidden; width: 100%; height: 100%; left: 0px; position: absolute; top: 0px; z-index: 9998; margin: 0; }
     </style>
     <script src="/js/vue.js"></script>
-    <script src="/js/jquery.min.js"></script>
     <link th:href="@{/css/element-ui@2.5.4/element-ui.css}" rel="stylesheet"/>
     <script th:src="@{/css/element-ui@2.5.4/element-ui.js}"></script>
     <style>
@@ -133,7 +132,9 @@
                     </ul>
 
                      <ul class="nav nav-second-level">
-                         <li class="active"><a class="menuItem" th:href="@{/system/cellList}">货位一览</a></li>
+                        <li class="active"><a class="menuItem" th:href="@{/system/areaOverview}">货区一览</a></li>
+                        <li><a class="menuItem" th:href="@{/system/shelfOverview}">货架一览</a></li>
+                        <li><a class="menuItem" th:href="@{/system/cellList}">货位一览</a></li>
                      </ul>
 
                 </li>

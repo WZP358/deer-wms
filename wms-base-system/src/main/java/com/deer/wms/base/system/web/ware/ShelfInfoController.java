@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -64,6 +65,17 @@ public class ShelfInfoController extends BaseController
 		return getDataTable(list);
 	}
 	
+	
+	@PostMapping("/listByArea")
+	@ResponseBody
+	public List<ShelfInfo> listByArea(Integer areaId)
+	{
+		if (areaId == null)
+		{
+			return Collections.emptyList();
+		}
+		return shelfInfoService.selectShelfInfoByAreaId(areaId);
+	}
 	
 	/**
 	 * 导出货架设置列表

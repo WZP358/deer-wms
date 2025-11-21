@@ -97,51 +97,76 @@ class PathfindingService {
     }
     
     optimizeRouteSync(grid, start, targets, allowDiagonal = false, saParams = {}) {
-        const {
-            initialTemp = 1000,
-            coolingRate = 0.995,
-            minTemp = 1,
-            maxIterations = 5000
-        } = saParams;
+        const config = this.normalizeSaParams(saParams);
         
-        if (targets.length === 0) return { path: [start], distance: 0, order: [] };
+        if (!targets || targets.length === 0) {
+            return { path: [start], distance: 0, order: [] };
+        }
+
         if (targets.length === 1) {
             const path = this.findPathSync(grid, start, targets[0], allowDiagonal);
             return { 
                 path: path || [start], 
-                distance: path ? path.length - 1 : 0,
+                distance: path ? path.length - 1 : Infinity,
                 order: [0]
             };
         }
         
         const distanceMatrix = this.buildDistanceMatrix(grid, start, targets, allowDiagonal);
         
-        let currentOrder = targets.map((_, i) => i);
-        let currentDistance = this.calculateTotalDistance(currentOrder, distanceMatrix);
+        let currentOrder = this.buildInitialOrder(distanceMatrix, targets.length);
+        if (currentOrder.length === 0) {
+            currentOrder = targets.map((_, i) => i);
+        }
+
+        let currentDistance = this.calculateOrderDistance(currentOrder, distanceMatrix);
         let bestOrder = [...currentOrder];
         let bestDistance = currentDistance;
         
-        let temp = initialTemp;
+        let temp = config.initialTemp;
         let iterations = 0;
+        let stagnationCounter = 0;
         
-        while (temp > minTemp && iterations < maxIterations) {
-            const newOrder = this.mutateOrder(currentOrder);
-            const newDistance = this.calculateTotalDistance(newOrder, distanceMatrix);
+        while (temp > config.minTemp && iterations < config.maxIterations) {
+            const newOrder = this.generateNeighborOrder(currentOrder, config.twoOptProbability);
+            const newDistance = this.calculateOrderDistance(newOrder, distanceMatrix);
             
             const delta = newDistance - currentDistance;
             
-            if (delta < 0 || Math.random() < Math.exp(-delta / temp)) {
+            if (delta < 0 || Math.random() < Math.exp(-delta / Math.max(temp, 1e-9))) {
                 currentOrder = newOrder;
                 currentDistance = newDistance;
                 
                 if (currentDistance < bestDistance) {
                     bestOrder = [...currentOrder];
                     bestDistance = currentDistance;
+                    stagnationCounter = 0;
+                } else {
+                    stagnationCounter++;
                 }
+            } else {
+                stagnationCounter++;
             }
             
-            temp *= coolingRate;
+            if (stagnationCounter > config.stagnationLimit) {
+                currentOrder = this.localRefinement(currentOrder, distanceMatrix);
+                currentDistance = this.calculateOrderDistance(currentOrder, distanceMatrix);
+                stagnationCounter = 0;
+                temp *= 0.9;
+                continue;
+            }
+            
+            temp *= config.coolingRate;
             iterations++;
+        }
+
+        if (stagnationCounter > 0) {
+            const refined = this.localRefinement(bestOrder, distanceMatrix);
+            const refinedDistance = this.calculateOrderDistance(refined, distanceMatrix);
+            if (refinedDistance < bestDistance) {
+                bestOrder = refined;
+                bestDistance = refinedDistance;
+            }
         }
         
         const fullPath = this.buildFullPath(grid, start, bestOrder.map(i => targets[i]), allowDiagonal);
@@ -171,7 +196,10 @@ class PathfindingService {
         return matrix;
     }
     
-    calculateTotalDistance(order, distanceMatrix) {
+    calculateOrderDistance(order, distanceMatrix) {
+        if (!order || order.length === 0) {
+            return 0;
+        }
         let total = distanceMatrix[0][order[0] + 1];
         
         for (let i = 0; i < order.length - 1; i++) {
@@ -181,12 +209,98 @@ class PathfindingService {
         return total;
     }
     
-    mutateOrder(order) {
+    buildInitialOrder(distanceMatrix, targetCount) {
+        const order = [];
+        const remaining = [];
+        for (let i = 0; i < targetCount; i++) {
+            remaining.push(i);
+        }
+
+        let currentIndex = 0;
+        while (remaining.length > 0) {
+            let bestIdx = 0;
+            let bestDistance = Infinity;
+
+            for (let i = 0; i < remaining.length; i++) {
+                const candidate = remaining[i];
+                const distance = distanceMatrix[currentIndex][candidate + 1];
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestIdx = i;
+                }
+            }
+
+            const [nextTarget] = remaining.splice(bestIdx, 1);
+            order.push(nextTarget);
+            currentIndex = nextTarget + 1;
+        }
+
+        return order;
+    }
+
+    generateNeighborOrder(order, twoOptProbability) {
+        if (order.length < 3 || Math.random() > twoOptProbability) {
+            const newOrder = [...order];
+            const i = Math.floor(Math.random() * newOrder.length);
+            const j = Math.floor(Math.random() * newOrder.length);
+            [newOrder[i], newOrder[j]] = [newOrder[j], newOrder[i]];
+            return newOrder;
+        }
+
+        const i = Math.floor(Math.random() * (order.length - 1));
+        const j = i + 1 + Math.floor(Math.random() * (order.length - i - 1));
+        return this.twoOptSwap(order, i, j);
+    }
+
+    twoOptSwap(order, i, k) {
         const newOrder = [...order];
-        const i = Math.floor(Math.random() * newOrder.length);
-        const j = Math.floor(Math.random() * newOrder.length);
-        [newOrder[i], newOrder[j]] = [newOrder[j], newOrder[i]];
+        let start = i;
+        let end = k;
+        while (start < end) {
+            [newOrder[start], newOrder[end]] = [newOrder[end], newOrder[start]];
+            start++;
+            end--;
+        }
         return newOrder;
+    }
+
+    localRefinement(order, distanceMatrix) {
+        if (!order || order.length < 4) {
+            return [...order];
+        }
+
+        let bestOrder = [...order];
+        let improved = true;
+
+        while (improved) {
+            improved = false;
+            for (let i = 0; i < bestOrder.length - 2; i++) {
+                for (let j = i + 1; j < bestOrder.length - 1; j++) {
+                    const candidate = this.twoOptSwap(bestOrder, i, j);
+                    if (this.calculateOrderDistance(candidate, distanceMatrix) < this.calculateOrderDistance(bestOrder, distanceMatrix)) {
+                        bestOrder = candidate;
+                        improved = true;
+                        break;
+                    }
+                }
+                if (improved) {
+                    break;
+                }
+            }
+        }
+
+        return bestOrder;
+    }
+
+    normalizeSaParams(saParams = {}) {
+        return {
+            initialTemp: saParams.initialTemp || 800,
+            coolingRate: saParams.coolingRate || 0.992,
+            minTemp: saParams.minTemp || 0.1,
+            maxIterations: saParams.maxIterations || 20000,
+            twoOptProbability: saParams.twoOptProbability || 0.4,
+            stagnationLimit: saParams.stagnationLimit || 800
+        };
     }
     
     buildFullPath(grid, start, orderedTargets, allowDiagonal) {

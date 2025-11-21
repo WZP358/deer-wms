@@ -337,10 +337,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         date(tii.task_end_time) as times,
          (
             select count(*) from (
-                select count(*),ti.task_end_time
+                select count(*),date(ti.task_end_time) as task_end_time
                 from task_info ti
                 where ti.type = 3
-                group by ti.bill_in_detail_id,date(date(ti.task_end_time))
+                group by ti.bill_in_detail_id,date(ti.task_end_time)
             ) as a where date(a.task_end_time) = date(tii.task_end_time)
          ) as total_item_code_quantity,
         count(*) as total_box_quantity,

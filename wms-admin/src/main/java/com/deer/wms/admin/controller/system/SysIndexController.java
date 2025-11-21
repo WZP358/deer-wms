@@ -56,6 +56,18 @@ public class SysIndexController extends BaseController
         return "cellList";
     }
 
+    @GetMapping("/system/areaOverview")
+    public String areaOverview()
+    {
+        return "areaOverview";
+    }
+
+    @GetMapping("/system/shelfOverview")
+    public String shelfOverview()
+    {
+        return "shelfOverview";
+    }
+
     @RequiresPermissions("system:operator:floor")
     @GetMapping("/system/billinControl")
     public String billinControl()

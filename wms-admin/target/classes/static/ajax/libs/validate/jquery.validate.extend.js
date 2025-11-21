@@ -1,5 +1,9 @@
 /*this is basic form validation using for validation person's basic information author:Clara Guo data:2017/07/20*/
 $(document).ready(function(){
+	if (typeof $.validator === 'undefined') {
+		console.warn('jquery.validate is not loaded, skip extending validators.');
+		return;
+	}
 	$.validator.setDefaults({       
 		  submitHandler: function(form) {    
 		 		form.submit();    
