@@ -1,8 +1,10 @@
 var billId =parseInt(localStorage.getItem(prefix+'/detail'));
 
+var pathfindingService;
 
-
-
+if (typeof PathfindingService !== 'undefined') {
+    pathfindingService = new PathfindingService();
+}
 
 var vue = new Vue({
     el: '.container-div',
@@ -51,6 +53,15 @@ var vue = new Vue({
             cellSuccess: 0,
             cellDanger: 0,
             cellWraning: 0,
+        },
+        
+        selectedCells: [],
+        pathData: null,
+        pathAnimation: {
+            animating: false,
+            paused: false,
+            currentIndex: 0,
+            intervalId: null
         }
     },
     methods: {
@@ -331,6 +342,8 @@ var vue = new Vue({
         tranCad(){
 
             let cad = document.querySelector('.smallCad');
+            
+            if(!cad) return;
 
             let left = cad.style.left;
             if(this.cadFlg){
@@ -340,8 +353,266 @@ var vue = new Vue({
                 cad.style.left = '96%';
                 this.cadFlg = true
             }
-            // cad.style.transition = 'left 20s cubic-bezier(1, 1.01, 0.02, 0.01) 0s';
 
+        },
+        
+        toggleCellSelection(shelfIndex, cellIndex) {
+            const cellKey = shelfIndex + '-' + cellIndex;
+            const index = this.selectedCells.indexOf(cellKey);
+            if (index > -1) {
+                this.selectedCells.splice(index, 1);
+                console.log('取消选择货位:', cellKey);
+            } else {
+                this.selectedCells.push(cellKey);
+                console.log('选择货位:', cellKey);
+            }
+            console.log('当前已选择:', this.selectedCells);
+        },
+        
+        async startPathfinding() {
+            if (!pathfindingService) {
+                $.modal.alertError('路径规划服务未加载');
+                return;
+            }
+            
+            if (this.selectedCells.length === 0) {
+                $.modal.msg('请先选择目标货位');
+                return;
+            }
+            
+            const grid = this.buildGrid();
+            const start = this.getEntrancePosition(grid);
+            const targets = this.selectedCells.map(key => {
+                const parts = key.split('-');
+                const shelfIdx = parseInt(parts[0]);
+                const cellIdx = parseInt(parts[1]);
+                return this.getCellPosition(shelfIdx, cellIdx);
+            });
+            
+            console.log('Grid:', grid);
+            console.log('Start:', start);
+            console.log('Targets:', targets);
+            console.log('Grid dimensions:', grid.length, 'x', grid[0].length);
+            console.log('Start position value:', grid[start.row][start.col]);
+            targets.forEach((t, i) => {
+                console.log('Target', i, ':', t, 'value:', grid[t.row][t.col]);
+            });
+            
+            try {
+                const result = await pathfindingService.optimizeRoute(grid, start, targets, false);
+                this.pathData = result;
+                console.log('Path result:', result);
+                if (result.distance === Infinity) {
+                    $.modal.alertError('无法找到有效路径，请检查起点和目标点是否在通道上');
+                } else {
+                    $.modal.msg('路径计算完成，总距离：' + result.distance + ' 步');
+                }
+            } catch (e) {
+                console.error('Path error:', e);
+                $.modal.alertError('路径计算失败：' + e.message);
+            }
+        },
+        
+        buildGrid() {
+            if (!this.cellLists || this.cellLists.length === 0) {
+                return [];
+            }
+            
+            const shelf = this.cellLists[0];
+            if (!shelf || shelf.length === 0) return [];
+            
+            const maxRow = shelf[shelf.length - 1].srow;
+            const maxCol = shelf[shelf.length - 1].scolumn;
+            
+            const gridRows = maxRow * 2 + 1;
+            const gridCols = maxCol * 2 + 1;
+            
+            const grid = [];
+            for (let r = 0; r < gridRows; r++) {
+                const row = [];
+                for (let c = 0; c < gridCols; c++) {
+                    row.push(0);
+                }
+                grid.push(row);
+            }
+            
+            for (let i = 0; i < this.cellLists.length; i++) {
+                const shelfCells = this.cellLists[i];
+                for (let j = 0; j < shelfCells.length; j++) {
+                    const cell = shelfCells[j];
+                    const gridRow = (cell.srow - 1) * 2 + 1;
+                    const gridCol = (cell.scolumn - 1) * 2 + 1;
+                    if (gridRow >= 0 && gridRow < gridRows && gridCol >= 0 && gridCol < gridCols) {
+                        grid[gridRow][gridCol] = 9;
+                    }
+                }
+            }
+            
+            return grid;
+        },
+        
+        getEntrancePosition(grid) {
+            if (!grid || grid.length === 0 || grid[0].length === 0) {
+                return { row: 0, col: 0 };
+            }
+            
+            const middleCol = Math.floor(grid[0].length / 2);
+            return { row: 0, col: middleCol };
+        },
+        
+        getCellPosition(shelfIndex, cellIndex) {
+            const cell = this.cellLists[shelfIndex][cellIndex];
+            const gridRow = (cell.srow - 1) * 2 + 1;
+            const gridCol = (cell.scolumn - 1) * 2 + 1;
+            return { row: gridRow + 1, col: gridCol };
+        },
+        
+        startAnimation() {
+            if (!this.pathData || !this.pathData.path) {
+                $.modal.msg('请先计算路径');
+                return;
+            }
+            
+            this.pathAnimation.animating = true;
+            this.pathAnimation.paused = false;
+            this.pathAnimation.currentIndex = 0;
+            
+            this.initCanvas();
+            this.animateStep();
+        },
+        
+        initCanvas() {
+            const canvas = document.getElementById('pathCanvas');
+            if (!canvas) return;
+            
+            const container = canvas.parentElement;
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        },
+        
+        drawPath(currentIndex) {
+            const canvas = document.getElementById('pathCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!this.pathData || !this.pathData.path || this.pathData.path.length === 0) return;
+            
+            const shelf = this.cellLists[0];
+            if (!shelf || shelf.length === 0) return;
+            
+            const maxRow = shelf[shelf.length - 1].srow;
+            const maxCol = shelf[shelf.length - 1].scolumn;
+            
+            const cellWidth = container.offsetWidth / maxCol;
+            const cellHeight = container.offsetHeight / maxRow;
+            
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            
+            for (let i = 0; i <= currentIndex && i < this.pathData.path.length; i++) {
+                const pos = this.pathData.path[i];
+                const x = (pos.col / 2) * cellWidth;
+                const y = (pos.row / 2) * cellHeight;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+            
+            if (currentIndex < this.pathData.path.length) {
+                const pos = this.pathData.path[currentIndex];
+                const x = (pos.col / 2) * cellWidth;
+                const y = (pos.row / 2) * cellHeight;
+                
+                ctx.fillStyle = '#409eff';
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        },
+        
+        animateStep() {
+            const that = this;
+            if (that.pathAnimation.paused || !that.pathAnimation.animating) {
+                return;
+            }
+            
+            if (that.pathAnimation.currentIndex >= that.pathData.path.length) {
+                that.pathAnimation.animating = false;
+                $.modal.msg('路径模拟完成');
+                return;
+            }
+            
+            that.drawPath(that.pathAnimation.currentIndex);
+            that.pathAnimation.currentIndex++;
+            
+            that.pathAnimation.intervalId = setTimeout(function() {
+                that.animateStep();
+            }, 200);
+        },
+        
+        pauseAnimation() {
+            this.pathAnimation.paused = true;
+            if (this.pathAnimation.intervalId) {
+                clearTimeout(this.pathAnimation.intervalId);
+            }
+        },
+        
+        resumeAnimation() {
+            this.pathAnimation.paused = false;
+            this.animateStep();
+        },
+        
+        stopAnimation() {
+            this.pathAnimation.animating = false;
+            this.pathAnimation.paused = false;
+            this.pathAnimation.currentIndex = 0;
+            if (this.pathAnimation.intervalId) {
+                clearTimeout(this.pathAnimation.intervalId);
+            }
+            this.initCanvas();
+        },
+        
+        highlightPath(pos) {
+            const elements = document.querySelectorAll('.path-highlight');
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].classList.remove('path-current');
+            }
+            
+            if (pos.row % 2 === 0 && pos.col % 2 === 0) {
+                return;
+            }
+            
+            let shelfRow = Math.floor(pos.row / 2) + 1;
+            let shelfCol = Math.floor(pos.col / 2) + 1;
+            
+            const selector = '.shelf[data-row="' + shelfRow + '"][data-col="' + shelfCol + '"]';
+            const element = document.querySelector(selector);
+            if (element) {
+                element.classList.add('path-highlight', 'path-current');
+            }
+        },
+        
+        clearPathHighlight() {
+            const elements = document.querySelectorAll('.path-highlight');
+            for (let i = 0; i < elements.length; i++) {
+                elements[i].classList.remove('path-highlight', 'path-current');
+            }
         }
 
     },

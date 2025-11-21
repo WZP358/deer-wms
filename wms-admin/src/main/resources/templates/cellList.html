@@ -71,6 +71,20 @@
         .bigShelfBox .shelfBox .shelf.wraning {
             background: orange;
         }
+        
+        .bigShelfBox .shelfBox .shelf.selected {
+            border: 3px solid #409eff;
+            box-sizing: border-box;
+        }
+        
+        .bigShelfBox .shelfBox .shelf.path-highlight {
+            background: rgba(64, 158, 255, 0.3) !important;
+        }
+        
+        .bigShelfBox .shelfBox .shelf.path-current {
+            background: rgba(64, 158, 255, 0.8) !important;
+            box-shadow: 0 0 10px rgba(64, 158, 255, 0.8);
+        }
 
         .bigShelfBox .shelfBox .shelf .showBox {
             position: absolute;
@@ -397,12 +411,20 @@
                 </div>
 
 
-                <div class="bigShelfBox rightBox clearFloat" @mouseenter="bigEnter(0)" @mouseleave="bigLeave()">
+                <div class="bigShelfBox rightBox clearFloat" @mouseenter="bigEnter(0)" @mouseleave="bigLeave()" style="position: relative;">
+                    <canvas id="pathCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 100;"></canvas>
                     <div class="shelfBox top leftBox clearFloat" :style="style[0]" v-for="(item,index) in cellLists[0]">
                         <div class="shelf leftBox"
-                             :class="item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':'')))"
+                             :class="[
+                                 item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':''))),
+                                 selectedCells.indexOf('0-'+index) > -1 ? 'selected' : ''
+                             ]"
                              :style="style2[0]"
-                             @mouseenter="enter(index)" @mouseleave="leave()">
+                             :data-row="item.srow"
+                             :data-col="item.scolumn"
+                             @mouseenter="enter(index)" 
+                             @mouseleave="leave()"
+                             @click="toggleCellSelection(0, index)">
                             <div class="showBox" v-show="seen&&index==current&&bigSeen&&0==bigCurrent">
                                 <p>
                                     第{{nowShowConten.row}}行，
@@ -432,9 +454,16 @@
                 <div class="bigShelfBox rightBox clearFloat" @mouseenter="bigEnter(1)" @mouseleave="bigLeave()">
                     <div class="shelfBox bottom leftBox clearFloat" :style="style[1]" v-for="(item,index) in cellLists[1]">
                         <div class="shelf leftBox"
-                             :class="item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':'')))"
+                             :class="[
+                                 item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':''))),
+                                 selectedCells.indexOf('1-'+index) > -1 ? 'selected' : ''
+                             ]"
                              :style="style2[1]"
-                             @mouseenter="enter(index)" @mouseleave="leave()">
+                             :data-row="item.srow"
+                             :data-col="item.scolumn"
+                             @mouseenter="enter(index)" 
+                             @mouseleave="leave()"
+                             @click="toggleCellSelection(1, index)">
                             <div class="showBox" v-show="seen&&index==current&&bigSeen&&1==bigCurrent">
                                 <p>
                                     第{{nowShowConten.row}}行，
@@ -459,6 +488,14 @@
                     </div>
                 </div>
                 <div class="shelfBottomNav rightBox clearFloat" style="padding: 10px;">
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-primary" @click="startPathfinding" style="margin-right: 5px;">计算路径</button>
+                        <button class="btn btn-success" @click="startAnimation" :disabled="!pathData || pathAnimation.animating" style="margin-right: 5px;">开始模拟</button>
+                        <button class="btn btn-warning" @click="pauseAnimation" v-if="pathAnimation.animating && !pathAnimation.paused" style="margin-right: 5px;">暂停</button>
+                        <button class="btn btn-warning" @click="resumeAnimation" v-if="pathAnimation.animating && pathAnimation.paused" style="margin-right: 5px;">继续</button>
+                        <button class="btn btn-danger" @click="stopAnimation" :disabled="!pathAnimation.animating" style="margin-right: 5px;">停止</button>
+                        <span v-if="pathData" style="margin-left: 10px; font-weight: bold;">路径长度: {{pathData.distance}} 步</span>
+                    </div>
                     <div class="shelfNav">
                         <p class="clearFloat">
                             <span class="colorBlock notHave"></span>
@@ -558,6 +595,10 @@
             var detailPrefix = ctx + "in/billInDetail";
         </script>
 
+        <script th:src="@{/js/pathfinding/pathfinding.js}"></script>
+        <script>
+            console.log('PathfindingService available:', typeof PathfindingService !== 'undefined');
+        </script>
         <script th:src="@{/ruoyi/in/cellList.js}"></script>
 
 
