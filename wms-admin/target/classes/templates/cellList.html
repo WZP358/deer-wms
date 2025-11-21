@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh" xmlns:th="http://www.thymeleaf.org" >
 <head>
-	<th:block th:include="include :: header('详情')" />
+    <th:block th:include="include :: header('详情')" />
     <style>
         [v-cloak] {
             display: none;
@@ -37,19 +37,12 @@
             float: right;
         }
 
-        .warehouse-stage {
-            position: relative;
-            padding-top: 40px;
-            margin-top: 12px;
-        }
-
         .bigShelfBox {
             width: 86%;
             box-shadow: 0px -4px 12px 0px rgba(0, 0, 0, 0.1);
             border-radius: 4px;
             margin-left: 1%;
             margin-right: 1%;
-            margin-top: 18px;
         }
 
         .bigShelfBox .shelfBox {
@@ -78,16 +71,16 @@
         .bigShelfBox .shelfBox .shelf.wraning {
             background: orange;
         }
-        
+
         .bigShelfBox .shelfBox .shelf.selected {
             border: 3px solid #409eff;
             box-sizing: border-box;
         }
-        
+
         .bigShelfBox .shelfBox .shelf.path-highlight {
             background: rgba(64, 158, 255, 0.3) !important;
         }
-        
+
         .bigShelfBox .shelfBox .shelf.path-current {
             background: rgba(64, 158, 255, 0.8) !important;
             box-shadow: 0 0 10px rgba(64, 158, 255, 0.8);
@@ -104,61 +97,6 @@
             z-index: 10;
             padding: 6px;
             user-select: none;
-        }
-        .visit-label {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            min-width: 22px;
-            padding: 0 6px;
-            height: 18px;
-            line-height: 18px;
-            font-size: 12px;
-            border-radius: 10px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #fff;
-            text-align: center;
-            pointer-events: none;
-        }
-        .visit-label.visited {
-            background: #67c23a;
-            font-weight: 600;
-        }
-        .entrance-icon {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            padding: 4px 12px 4px 28px;
-            background: rgba(64, 158, 255, 0.92);
-            color: #fff;
-            border-radius: 16px;
-            font-size: 12px;
-            line-height: 1.2;
-            box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35);
-            z-index: 120;
-            pointer-events: none;
-        }
-        .entrance-icon__door {
-            position: absolute;
-            left: 8px;
-            width: 14px;
-            height: 18px;
-            border: 2px solid #fff;
-            border-radius: 2px;
-            box-sizing: border-box;
-        }
-        .entrance-icon__door::after {
-            content: '';
-            position: absolute;
-            right: 3px;
-            top: 7px;
-            width: 3px;
-            height: 3px;
-            border-radius: 50%;
-            background: #fff;
-        }
-        .entrance-icon__text {
-            white-space: nowrap;
         }
 
         .leftNav {
@@ -408,268 +346,260 @@
             transition: left 20s cubic-bezier(1, 1.01, 0.02, 0.01) 0s;
             /* transition-timing-function: cubic-bezier(0.48, 0.49, 0.74, 0.75); */
         }
-        .path-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .path-toolbar .btn {
-            min-width: 120px;
-        }
-        .path-toolbar__status {
-            font-size: 13px;
-            color: #606266;
-        }
-        .path-toolbar__status strong {
-            color: #303133;
-            margin: 0 4px;
-        }
-        .path-toolbar__meta {
-            font-size: 13px;
-            color: #909399;
-        }
     </style>
 </head>
 <body >
 
 
-        <div class="container-div" onmousemove="safeParentInvoke('updateTimeOut')" onkeyup="safeParentInvoke('lock', event)">
+<div class="container-div" onmousemove="parent.updateTimeOut()" onkeyup="parent.lock(event)">
 
-            <!--            <div class="appHearder">
-                            <div class="hearderNav clearFloat">
-                                <span :class="tabsFlg==1?'current':''" @click="tabsFlg=1">快速操作</span>
-                                <span :class="tabsFlg==2?'current':''" @click="tabsFlg=2">查询定位</span>
-                </div>
-                <div class="hearderBody">
-                </div>
-            </div>-->
-            <div v-show="tabsFlg==1" class="appBody clearFloat">
-<!--                <div class="sousuo clearFloat">-->
-<!--                    <span @click="tranCad">托盘号</span>-->
-<!--                    <input type="number" v-model="shelfIndex">-->
-<!--                    <button @click="selectShelf('position')">定位</button>-->
-<!--                    <button @click="selectShelf('clear')" style="background: #0000ff;">重置</button>-->
-<!--                </div>-->
-                <div class="leftNav leftBox">
-                    <div class="navTop">
-                        <p class="LeftNavTitle">货区列表</p>
-                        <button class="NavTopBtn" v-for="area in areas" @click="getCellListByAreaId(area.areaId)" >{{area.areaName}}</button>
-
-
-                    </div>
-                   <!-- <div class="navTop">
-                        <p class="LeftNavTitle">出入库口</p>
-
-                        &lt;!&ndash;                    <button class="NavTopBtn" v-for="door in doors" v-bind:value="door.doorId">{{door.name}}</button>&ndash;&gt;
-                        &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
-                        &lt;!&ndash;                        <span></span>&ndash;&gt;
-                        &lt;!&ndash;                        <span v-for="door in doors" v-bind:value="door.doorId">{{door.doorName}}</span>&ndash;&gt;
-                        &lt;!&ndash;                    </div>&ndash;&gt;
-
-
-                        <div class="NavTopBtn bottom"  v-for="door in doors" v-bind:value="door.doorId">
-                            <span></span>
-                            <span>{{door.name}}</span>
-                        </div>
-
-
-                        &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
-                        &lt;!&ndash;                        <span></span>&ndash;&gt;
-                        &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
-                        &lt;!&ndash;                    </div>&ndash;&gt;
-                        &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
-                        &lt;!&ndash;                        <span></span>&ndash;&gt;
-                        &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
-                        &lt;!&ndash;                    </div>&ndash;&gt;
-                        &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
-                        &lt;!&ndash;                        <span></span>&ndash;&gt;
-                        &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
-                        &lt;!&ndash;                    </div>&ndash;&gt;
-                        &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
-                        &lt;!&ndash;                        <span></span>&ndash;&gt;
-                        &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
-                        &lt;!&ndash;                    </div>&ndash;&gt;
-                    </div>-->
-                </div>
-
-                <div class="warehouse-stage rightBox">
-                    <canvas id="pathCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 100;"></canvas>
-                    <div class="entrance-icon" :style="getEntranceStyle()" :title="entranceDisplayName">
-                        <span class="entrance-icon__door"></span>
-                        <span class="entrance-icon__text">{{ entranceDisplayName }}</span>
-                    </div>
-                    <div class="bigShelfBox clearFloat"
-                         v-for="(lane, laneIndex) in cellLists"
-                         :key="'lane-'+laneIndex"
-                         @mouseenter="bigEnter(laneIndex)"
-                         @mouseleave="bigLeave()">
-                        <div class="shelfBox leftBox clearFloat"
-                             :class="laneIndex % 2 === 0 ? 'top' : 'bottom'"
-                             :style="style[laneIndex]"
-                             v-for="(item,index) in lane"
-                             :key="'cell-'+laneIndex+'-'+index">
-                            <div class="shelf leftBox"
-                                 :class="[
-                                     item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':''))),
-                                     selectedCells.indexOf(laneIndex+'-'+index) > -1 ? 'selected' : ''
-                                 ]"
-                                 :style="style2[laneIndex]"
-                                 :data-row="getRow(item)"
-                                 :data-col="getColumn(item)"
-                                 @mouseenter="enter(laneIndex, index)" 
-                                 @mouseleave="leave()"
-                                 @click="toggleCellSelection(laneIndex, index)">
-                                <span
-                                        v-if="arrivalAnnotations[laneIndex+'-'+index]"
-                                        class="visit-label"
-                                        :class="{'visited': arrivalAnnotations[laneIndex+'-'+index].reached}">
-                                    {{ arrivalAnnotations[laneIndex+'-'+index].reached ? '√' : arrivalAnnotations[laneIndex+'-'+index].order }}
-                                </span>
-                                <div class="showBox" v-show="seen&&index==current&&bigSeen&&laneIndex==bigCurrent">
-                                    <p>
-                                        第{{nowShowConten.row}}行，
-                                        第{{nowShowConten.column}}列
-                                    </p>
-                                    <p>
-                                        货物状态:
-                                        <span :style="{color: item.state==0?'':(item.state==1?'#439756':(item.state==3?'#a85046':(item.state==2?'#ffa500':'')))}"
-                                              style="font-weight: bold;">
-                                            {{nowShowConten.state}}
-                                        </span>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="ddj rightBox">
-                        <span class="smallCad">堆垛机</span>
-                    </p>
-                </div>
-                <div class="shelfBottomNav rightBox clearFloat" style="padding: 10px;">
-                    <div class="alert alert-info" style="margin-bottom: 15px;">
-                        路径规划功能已迁移至
-                        <a th:href="@{/system/areaOverview}" target="_blank">货区一览</a>
-                        与
-                        <a th:href="@{/system/shelfOverview}" target="_blank">货架一览</a>，
-                        请按新的逐级流程操作。
-                    </div>
-                    <div class="shelfNav">
-                        <p class="clearFloat">
-                            <span class="colorBlock notHave"></span>
-                            <span class="colorBlockTitle">无货</span>
-                        </p>
-                        <p class="clearFloat">
-                            <span class="p_Title">巷道合计</span>
-                            <span class="colorBlockTitle">:</span>
-                            <span class="colorBlockNumber">{{cellNum.cellNell}}</span>
-                        </p>
-                    </div>
-                    <div class="shelfNav">
-                        <p class="clearFloat">
-                            <span class="colorBlock have"></span>
-                            <span class="colorBlockTitle">有货</span>
-                        </p>
-                        <p class="clearFloat">
-                            <span class="p_Title">巷道合计</span>
-                            <span class="colorBlockTitle">:</span>
-                            <span class="colorBlockNumber">{{cellNum.cellSuccess}}</span>
-                        </p>
-                    </div>
-                    <div class="shelfNav">
-                        <p class="clearFloat">
-                            <span class="colorBlock select"></span>
-                            <span class="colorBlockTitle">锁定</span>
-                        </p>
-                        <p class="clearFloat">
-                            <span class="p_Title">巷道合计</span>
-                            <span class="colorBlockTitle">:</span>
-                            <span class="colorBlockNumber">{{cellNum.cellDanger}}</span>
-                        </p>
-                    </div>
-                    <div class="shelfNav">
-                        <p class="clearFloat">
-                            <span class="colorBlock wraning"></span>
-                            <span class="colorBlockTitle">故障</span>
-                        </p>
-                        <p class="clearFloat">
-                            <span class="p_Title">巷道合计</span>
-                            <span class="colorBlockTitle">:</span>
-                            <span class="colorBlockNumber">{{cellNum.cellWraning}}</span>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div v-show="tabsFlg==2">
-                <div class="sousuo clearFloat">
-                    <!--            <span>单据号</span>-->
-                    <!--            <input type="text">-->
-                    <span>物料名称</span>
-                    <input type="text" name="itemName">
-                    <span>物料编码</span>
-                    <input type="text" name="itemCode">
-                    <span>批次</span>
-                    <input type="text" name="batch">
-                    <button style="background: #0000ff;" @click="findCellInfoDto">查询</button>
-                    <button>重置</button>
-                </div>
-
-                <table border="1" cellpadding="0" cellspacing="0" style="width: 80%;margin-left: 5%;text-align: center;">
-
-                    <tr style="height: 40px;font-size: 16px;font-weight: bold;">
-
-                    <td>物料名称</td>
-                    <td>物料编码</td>
-                    <td>批次</td>
-                    <td>货架名</td>
-                    <td>行</td>
-                    <td>列</td>
-                    </tr>
-
-                    <tr v-for="item in cellInfoDtos" style="height: 40px;font-size: 14px;">
-
-                        <td>{{item.itemName}}</td>
-                        <td>{{item.itemCode}}</td>
-                        <td>{{item.batch}}</td>
-                        <td>{{item.shelfName}}</td>
-                        <td>{{getRow(item)}}</td>
-                        <td>{{getColumn(item)}}</td>
-
-                    </tr>
-                </table>
+    <!--            <div class="appHearder">
+                    <div class="hearderNav clearFloat">
+                        <span :class="tabsFlg==1?'current':''" @click="tabsFlg=1">快速操作</span>
+                        <span :class="tabsFlg==2?'current':''" @click="tabsFlg=2">查询定位</span>
+        </div>
+        <div class="hearderBody">
+        </div>
+    </div>-->
+    <div v-show="tabsFlg==1" class="appBody clearFloat">
+        <!--                <div class="sousuo clearFloat">-->
+        <!--                    <span @click="tranCad">托盘号</span>-->
+        <!--                    <input type="number" v-model="shelfIndex">-->
+        <!--                    <button @click="selectShelf('position')">定位</button>-->
+        <!--                    <button @click="selectShelf('clear')" style="background: #0000ff;">重置</button>-->
+        <!--                </div>-->
+        <div class="leftNav leftBox">
+            <div class="navTop">
+                <p class="LeftNavTitle">货区列表</p>
+                <button class="NavTopBtn" v-for="area in areas" @click="getCellListByAreaId(area.areaId)" >{{area.areaName}}</button>
 
 
             </div>
+            <!-- <div class="navTop">
+                 <p class="LeftNavTitle">出入库口</p>
+
+                 &lt;!&ndash;                    <button class="NavTopBtn" v-for="door in doors" v-bind:value="door.doorId">{{door.name}}</button>&ndash;&gt;
+                 &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
+                 &lt;!&ndash;                        <span></span>&ndash;&gt;
+                 &lt;!&ndash;                        <span v-for="door in doors" v-bind:value="door.doorId">{{door.doorName}}</span>&ndash;&gt;
+                 &lt;!&ndash;                    </div>&ndash;&gt;
 
 
+                 <div class="NavTopBtn bottom"  v-for="door in doors" v-bind:value="door.doorId">
+                     <span></span>
+                     <span>{{door.name}}</span>
+                 </div>
 
+
+                 &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
+                 &lt;!&ndash;                        <span></span>&ndash;&gt;
+                 &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
+                 &lt;!&ndash;                    </div>&ndash;&gt;
+                 &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
+                 &lt;!&ndash;                        <span></span>&ndash;&gt;
+                 &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
+                 &lt;!&ndash;                    </div>&ndash;&gt;
+                 &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
+                 &lt;!&ndash;                        <span></span>&ndash;&gt;
+                 &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
+                 &lt;!&ndash;                    </div>&ndash;&gt;
+                 &lt;!&ndash;                    <div class="NavTopBtn bottom">&ndash;&gt;
+                 &lt;!&ndash;                        <span></span>&ndash;&gt;
+                 &lt;!&ndash;                        <span>出入库name</span>&ndash;&gt;
+                 &lt;!&ndash;                    </div>&ndash;&gt;
+             </div>-->
         </div>
 
-        <div th:include="include::footer"></div>
-        <script>
-            function safeParentInvoke(fnName, arg) {
-                try {
-                    if (window.parent && typeof window.parent[fnName] === 'function') {
-                        window.parent[fnName](arg);
-                    }
-                } catch (e) {
-                    console.warn('Parent call skipped:', fnName, e);
-                }
-            }
-        </script>
-        <script th:inline="javascript">
-            var editFlag = [[${@permission.hasPermi('in:billInMaster:edit')}]];
-            var removeFlag = [[${@permission.hasPermi('in:billInMaster:remove')}]];
-            var prefix = ctx + "in/billInMaster";
-            var detailPrefix = ctx + "in/billInDetail";
-        </script>
 
-        <script th:src="@{/js/pathfinding/pathfinding.js}"></script>
-        <script>
-            console.log('PathfindingService available:', typeof PathfindingService !== 'undefined');
-        </script>
-        <script th:src="@{/ruoyi/in/cellList.js}"></script>
+        <div class="bigShelfBox rightBox clearFloat" @mouseenter="bigEnter(0)" @mouseleave="bigLeave()" style="position: relative;">
+            <canvas id="pathCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 100;"></canvas>
+            <div class="shelfBox top leftBox clearFloat" :style="style[0]" v-for="(item,index) in cellLists[0]">
+                <div class="shelf leftBox"
+                     :class="[
+                                 item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':''))),
+                                 selectedCells.indexOf('0-'+index) > -1 ? 'selected' : ''
+                             ]"
+                     :style="style2[0]"
+                     :data-row="item.srow"
+                     :data-col="item.scolumn"
+                     @mouseenter="enter(index)"
+                     @mouseleave="leave()"
+                     @click="toggleCellSelection(0, index)">
+                    <div class="showBox" v-show="seen&&index==current&&bigSeen&&0==bigCurrent">
+                        <p>
+                            第{{nowShowConten.row}}行，
+                            第{{nowShowConten.column}}列
+                        </p>
+                        <p>
+                            货物状态:
+                            <span :style="{color: item.state==0?'':(item.state==1?'#439756':(item.state==3?'#a85046':(item.state==2?'#ffa500':'')))}"
+                                  style="font-weight: bold;">
+                                        {{nowShowConten.state}}
+                                    </span>
+                        </p>
+                        <!--<span>
+                            &nbsp;&nbsp;&nbsp;(0-无货;1-有货;2-锁定;3-故障)
+                        </span>-->
+
+                        <!--                                <p v-if="item.have == 2">货物状态 : 有货 , 钢材 , 20米</p>-->
+                        <!--                                <p v-else>货物状态 : 无货</p>-->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="ddj rightBox">
+            <span class="smallCad">堆垛机</span>
+        </p>
+
+        <div class="bigShelfBox rightBox clearFloat" @mouseenter="bigEnter(1)" @mouseleave="bigLeave()">
+            <div class="shelfBox bottom leftBox clearFloat" :style="style[1]" v-for="(item,index) in cellLists[1]">
+                <div class="shelf leftBox"
+                     :class="[
+                                 item.state==0?'':(item.state==1?'success':(item.state==3?'wraning':(item.state==2?'danger':''))),
+                                 selectedCells.indexOf('1-'+index) > -1 ? 'selected' : ''
+                             ]"
+                     :style="style2[1]"
+                     :data-row="item.srow"
+                     :data-col="item.scolumn"
+                     @mouseenter="enter(index)"
+                     @mouseleave="leave()"
+                     @click="toggleCellSelection(1, index)">
+                    <div class="showBox" v-show="seen&&index==current&&bigSeen&&1==bigCurrent">
+                        <p>
+                            第{{nowShowConten.row}}行，
+                            第{{nowShowConten.column}}列
+                        </p>
+                        <p>
+                            货物状态:
+                            <span :style="{color: item.state==0?'':(item.state==1?'#439756':(item.state==3?'#a85046':(item.state==2?'#ffa500':'')))}"
+                                  style="font-weight: bold;">
+                                        {{nowShowConten.state}}
+                                    </span>
+                        </p>
+                        <!--<span>
+                            &nbsp;&nbsp;&nbsp;(0-无货;1-有货;2-锁定;3-故障)
+                        </span>-->
+                        <!--                            <p>仓储位置 : 第3巷道 , 第2排 , 第52列 , 第9层</p>-->
+                        <!--                            <p>电气位置 : 第3巷道 , 第2排 , 第53列 , 第11层</p>-->
+                        <!--                            <p v-if="item.have == 2">货物状态 : 有货 , 钢材 , 20米</p>-->
+                        <!--                            <p v-else>货物状态 : 无货</p>-->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="shelfBottomNav rightBox clearFloat" style="padding: 10px;">
+            <div style="margin-bottom: 15px;">
+                <button class="btn btn-primary" @click="startPathfinding" style="margin-right: 5px;">计算路径</button>
+                <button class="btn btn-success" @click="startAnimation" :disabled="!pathData || pathAnimation.animating" style="margin-right: 5px;">开始模拟</button>
+                <button class="btn btn-warning" @click="pauseAnimation" v-if="pathAnimation.animating && !pathAnimation.paused" style="margin-right: 5px;">暂停</button>
+                <button class="btn btn-warning" @click="resumeAnimation" v-if="pathAnimation.animating && pathAnimation.paused" style="margin-right: 5px;">继续</button>
+                <button class="btn btn-danger" @click="stopAnimation" :disabled="!pathAnimation.animating" style="margin-right: 5px;">停止</button>
+                <span v-if="pathData" style="margin-left: 10px; font-weight: bold;">路径长度: {{pathData.distance}} 步</span>
+            </div>
+            <div class="shelfNav">
+                <p class="clearFloat">
+                    <span class="colorBlock notHave"></span>
+                    <span class="colorBlockTitle">无货</span>
+                </p>
+                <p class="clearFloat">
+                    <span class="p_Title">巷道合计</span>
+                    <span class="colorBlockTitle">:</span>
+                    <span class="colorBlockNumber">{{cellNum.cellNell}}</span>
+                </p>
+            </div>
+            <div class="shelfNav">
+                <p class="clearFloat">
+                    <span class="colorBlock have"></span>
+                    <span class="colorBlockTitle">有货</span>
+                </p>
+                <p class="clearFloat">
+                    <span class="p_Title">巷道合计</span>
+                    <span class="colorBlockTitle">:</span>
+                    <span class="colorBlockNumber">{{cellNum.cellSuccess}}</span>
+                </p>
+            </div>
+            <div class="shelfNav">
+                <p class="clearFloat">
+                    <span class="colorBlock select"></span>
+                    <span class="colorBlockTitle">锁定</span>
+                </p>
+                <p class="clearFloat">
+                    <span class="p_Title">巷道合计</span>
+                    <span class="colorBlockTitle">:</span>
+                    <span class="colorBlockNumber">{{cellNum.cellDanger}}</span>
+                </p>
+            </div>
+            <div class="shelfNav">
+                <p class="clearFloat">
+                    <span class="colorBlock wraning"></span>
+                    <span class="colorBlockTitle">故障</span>
+                </p>
+                <p class="clearFloat">
+                    <span class="p_Title">巷道合计</span>
+                    <span class="colorBlockTitle">:</span>
+                    <span class="colorBlockNumber">{{cellNum.cellWraning}}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div v-show="tabsFlg==2">
+        <div class="sousuo clearFloat">
+            <!--            <span>单据号</span>-->
+            <!--            <input type="text">-->
+            <span>物料名称</span>
+            <input type="text" name="itemName">
+            <span>物料编码</span>
+            <input type="text" name="itemCode">
+            <span>批次</span>
+            <input type="text" name="batch">
+            <button style="background: #0000ff;" @click="findCellInfoDto">查询</button>
+            <button>重置</button>
+        </div>
+
+        <table border="1" cellpadding="0" cellspacing="0" style="width: 80%;margin-left: 5%;text-align: center;">
+
+            <tr style="height: 40px;font-size: 16px;font-weight: bold;">
+
+                <td>物料名称</td>
+                <td>物料编码</td>
+                <td>批次</td>
+                <td>货架名</td>
+                <td>行</td>
+                <td>列</td>
+            </tr>
+
+            <tr v-for="item in cellInfoDtos" style="height: 40px;font-size: 14px;">
+
+                <td>{{item.itemName}}</td>
+                <td>{{item.itemCode}}</td>
+                <td>{{item.batch}}</td>
+                <td>{{item.shelfName}}</td>
+                <td>{{item.srow}}</td>
+                <td>{{item.scolumn}}</td>
+
+            </tr>
+        </table>
+
+
+    </div>
+
+
+
+</div>
+
+<div th:include="include::footer"></div>
+<script th:inline="javascript">
+    var editFlag = [[${@permission.hasPermi('in:billInMaster:edit')}]];
+    var removeFlag = [[${@permission.hasPermi('in:billInMaster:remove')}]];
+    var prefix = ctx + "in/billInMaster";
+    var detailPrefix = ctx + "in/billInDetail";
+</script>
+
+<script th:src="@{/js/pathfinding/pathfinding.js}"></script>
+<script>
+    console.log('PathfindingService available:', typeof PathfindingService !== 'undefined');
+</script>
+<script th:src="@{/ruoyi/in/cellList.js}"></script>
 
 
 </body>
