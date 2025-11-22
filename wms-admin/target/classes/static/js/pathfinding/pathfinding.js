@@ -315,6 +315,38 @@ class PathfindingService {
             }
         }
         
-        return fullPath;
+        // 添加从最后一个目标返回起点的路径
+        if (orderedTargets.length > 0) {
+            const returnSegment = this.findPathSync(grid, current, start, allowDiagonal);
+            if (returnSegment && returnSegment.length > 1) {
+                fullPath = fullPath.concat(returnSegment.slice(1));
+            }
+        }
+
+        // 为了避免“路径穿模”，这里对整条路径做一次压缩：
+        // 仅保留通道交叉点（行、列都是偶数的坐标），这样前端在绘制时，
+        // 无论是 areaOverview/shelfOverview 自己画，还是 WarehousePathVisualizer，
+        // 都只会在格子之间的通道中心线上画线，不会从格子中间穿过去。
+        const compressed = [];
+        for (let i = 0; i < fullPath.length; i++) {
+            const p = fullPath[i];
+            if (!p || typeof p.row !== 'number' || typeof p.col !== 'number') {
+                continue;
+            }
+            const isEndpoint = (i === 0 || i === fullPath.length - 1);
+            const isEvenEven = (p.row % 2 === 0) && (p.col % 2 === 0);
+
+            // 起点/终点和所有“通道交叉点”都会被保留；
+            // 其它中间点（奇数行 / 奇数列）只用于内部寻路，不参与可视化，避免穿模视觉效果。
+            if (isEndpoint || isEvenEven) {
+                const last = compressed[compressed.length - 1];
+                if (!last || last.row !== p.row || last.col !== p.col) {
+                    compressed.push({ row: p.row, col: p.col });
+                }
+            }
+        }
+
+        // 正常情况下 compressed 至少有两个点；如果异常情况导致只有一个点，就退回原始路径。
+        return compressed.length >= 2 ? compressed : fullPath;
     }
 }
