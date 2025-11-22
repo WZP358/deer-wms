@@ -25,17 +25,12 @@ var vue = new Vue({
         shelfStyle2: {
             paddingBottom: ''
         },
-        seen: false,
-        current: 0,
-
-        nowShowConten: {
-            row: null,
-            column: null,
-            state: null,
+        contextMenu: {
+            visible: false,
+            title: '',
+            items: [],
+            style: {}
         },
-
-        bigSeen: false,
-        bigCurrent: 0,
 
         tabsFlg: 1,
         shelfIndex: '',
@@ -464,45 +459,37 @@ var vue = new Vue({
         },
 
 
-        bigEnter(index) {
-            this.bigSeen = true;
-            this.bigCurrent = index;
-        },
-        bigLeave() {
-            this.bigSeen = false;
-            this.bigCurrent = null;
-        },
-
-
-
-
-        enter(shelfIndex, index) {
-            const shelf = this.cellLists[shelfIndex];
-            if (!shelf || !shelf[index]) {
-                this.seen = false;
-                this.current = null;
+        showCellContextMenu(shelfIndex, cellIndex, cell, event) {
+            if (!cell) {
                 return;
             }
-            const cell = shelf[index];
-            this.nowShowConten.row = this.getRow(cell);
-            this.nowShowConten.column = this.getColumn(cell);
-            if(cell.state === 0){
-                this.nowShowConten.state = '无筐';
-            }else if(cell.state === 1){
-                this.nowShowConten.state = '有筐';
-            }else if(cell.state === 2){
-                this.nowShowConten.state = '锁定';
-            }else if(cell.state === 3){
-                this.nowShowConten.state = '故障';
+            const row = this.getRow(cell);
+            const column = this.getColumn(cell);
+            let stateText = '无筐';
+            if (cell.state === 1) {
+                stateText = '有筐';
+            } else if (cell.state === 2) {
+                stateText = '锁定';
+            } else if (cell.state === 3) {
+                stateText = '故障';
             }
-
-            this.seen = true;
-            this.current = index;
-            this.bigCurrent = shelfIndex;
+            const items = [
+                { label: '行', value: row || '-' },
+                { label: '列', value: column || '-' },
+                { label: '状态', value: stateText }
+            ];
+            this.contextMenu = {
+                visible: true,
+                title: '货位信息',
+                items: items,
+                style: {
+                    left: event.clientX + 'px',
+                    top: event.clientY + 'px'
+                }
+            };
         },
-        leave() {
-            this.seen = false;
-            this.current = null;
+        hideContextMenu() {
+            this.contextMenu.visible = false;
         },
         selectShelf(type) {
             let index = this.shelfIndex
@@ -816,7 +803,8 @@ var vue = new Vue({
                 ? this.gridDimensions.shelfCols
                 : Math.floor(grid[0].length / 2);
             const middleCell = Math.max(1, Math.ceil(shelfCols / 2));
-            const col = (middleCell - 1) * 2 + 1;
+            // 使用偶数列作为入口所在通道，保证入口在“通道交叉点”（行、列均为偶数）
+            const col = (middleCell - 1) * 2;
             return { row: 0, col: col };
         },
         
@@ -832,7 +820,10 @@ var vue = new Vue({
             }
             const gridRow = (rowValue - 1) * 2 + 1;
             const gridCol = (colValue - 1) * 2 + 1;
-            return { row: gridRow + 1, col: gridCol };
+            // 目标位置：格子正下方、左侧的通道交叉点
+            // gridRow、gridCol 为奇数（格子中心），+1 / -1 后得到偶数坐标（通道）
+            // 行：格子下方的通道；列：格子左侧的通道 → 行、列都为偶数
+            return { row: gridRow + 1, col: gridCol - 1 };
         },
         
         startAnimation() {
@@ -1109,16 +1100,15 @@ var vue = new Vue({
         this.getAreas();
         this.getDoors();
     },
+    mounted: function () {
+        document.addEventListener('click', this.hideContextMenu.bind(this));
+        setTimeout(this.tranCad,1000);
+        setInterval(this.tranCad,20000);
+    },
 
     updated:function(){
         this.changeShelfBoxBackGround("top",0);
         this.changeShelfBoxBackGround("bottom",1);
-    },
-    mounted: function () {
-        setTimeout(this.tranCad,1000);
-        setInterval(this.tranCad,20000);
-
-
     },
 
 })

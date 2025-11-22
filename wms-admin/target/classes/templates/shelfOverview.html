@@ -4,45 +4,165 @@
     <th:block th:include="include :: header('货架一览')" />
     <style>
         [v-cloak] { display: none; }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
         .container-div {
             padding: 20px;
         }
-        .overview-toolbar {
+
+        .clearFloat:after {
+            display: block;
+            clear: both;
+            content: "";
+            visibility: hidden;
+            height: 0
+        }
+
+        .clearFloat {
+            zoom: 1
+        }
+
+        .leftBox {
+            float: left;
+        }
+
+        .rightBox {
+            float: right;
+        }
+
+        .bigShelfBox {
+            width: 90%;
+            box-shadow: 0px 2px 12px 0px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            margin-left: 1%;
+            margin-right: 1%;
+            border: 1px solid #ebeef5;
+            background: #fff;
+            padding: 30px 25px 35px;
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-            margin-bottom: 20px;
+            align-content: flex-start;
         }
-        .overview-toolbar .btn-group button {
+
+        .bigShelfBox .shelfBox {
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        .bigShelfBox .shelfBox .shelf {
+            width: 100%;
+            padding-bottom: 100%;
+            height: 0;
+            background: #d3d3d3;
+            position: relative;
+            border: 3px solid #dfe4ed;
+            border-radius: 6px;
+            transition: box-shadow 0.18s ease, border-color 0.18s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            box-sizing: border-box;
+        }
+        
+        .bigShelfBox .shelfBox .shelf:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .bigShelfBox .shelfBox .shelf > span {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #67c23a;
+            color: #fff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .bigShelfBox .shelfBox .shelf.success {
+            background: #90ee90;
+        }
+
+        .bigShelfBox .shelfBox .shelf.danger {
+            background: #f08080;
+        }
+
+        .bigShelfBox .shelfBox .shelf.warning {
+            background: #ffa500;
+        }
+
+        .bigShelfBox .shelfBox .shelf.selected {
+            border-color: #67c23a;
+            box-shadow: 0 0 8px rgba(103, 194, 58, 0.4);
+        }
+
+        .bigShelfBox .shelfBox .shelf.path-highlight {
+            background: rgba(103, 194, 58, 0.3) !important;
+        }
+
+        .bigShelfBox .shelfBox .shelf.path-current {
+            background: rgba(103, 194, 58, 0.8) !important;
+            box-shadow: 0 0 10px rgba(103, 194, 58, 0.8);
+        }
+
+        .context-menu {
+            position: fixed;
+            z-index: 9999;
+            min-width: 180px;
+            max-width: 280px;
+            padding: 8px 0;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e4e7ed;
+        }
+        .context-menu__title {
+            padding: 8px 16px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #909399;
+            border-bottom: 1px solid #f0f2f5;
+            margin-bottom: 4px;
+        }
+        .context-menu__item {
+            padding: 6px 16px;
+            font-size: 11px;
+            color: #606266;
+            line-height: 1.5;
+            display: flex;
+            justify-content: space-between;
+        }
+        .context-menu__label {
+            color: #909399;
             margin-right: 8px;
         }
-        .path-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .path-toolbar .btn {
-            min-width: 120px;
-        }
-        .path-toolbar__status {
-            font-size: 13px;
-            color: #606266;
-        }
-        .path-toolbar__status strong {
+        .context-menu__value {
             color: #303133;
-            margin-left: 4px;
+            font-weight: 500;
         }
-        .path-toolbar__meta {
-            font-size: 13px;
-            color: #909399;
+
+        .overview-toolbar {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
-        .selection-hint {
-            color: #606266;
-            font-size: 14px;
+        
+        .area-filter {
+            display: flex;
+            align-items: center;
         }
+        
         .area-filter select {
             min-width: 220px;
             height: 34px;
@@ -50,242 +170,161 @@
             border-radius: 4px;
             padding: 0 10px;
         }
-        .warehouse-panel {
-            border: 1px solid #ebeef5;
-            border-radius: 12px;
-            background: #fff;
-            padding: 18px 20px 24px;
-        }
-        .warehouse-board {
-            position: relative;
-            border-radius: 12px;
-            background: linear-gradient(180deg, rgba(103,194,58,0.08), rgba(103,194,58,0.02));
-            padding: 16px;
-            min-height: 420px;
-            overflow: hidden;
-        }
-        .warehouse-board__stage {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-        .warehouse-board__grid {
-            position: relative;
-            z-index: 20;
-            display: grid;
-            width: 100%;
-            height: 100%;
-            gap: 12px;
-            grid-auto-rows: minmax(92px, 1fr);
-        }
-        .warehouse-board__canvas {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
-        .warehouse-cell {
-            position: relative;
-            border: 1px solid #dfe4ed;
-            border-radius: 10px;
-            background: #f7f8fc;
-            color: #606266;
-            font-size: 13px;
+        
+        .grid-settings {
             display: flex;
             align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 4px;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+            gap: 8px;
         }
-        .warehouse-cell::before {
-            content: '';
-            position: absolute;
-            inset: 6px;
-            border: 1px dashed transparent;
-            border-radius: 6px;
-            transition: inherit;
+        
+        .grid-settings label {
+            font-size: 14px;
+            color: #606266;
         }
-        .warehouse-cell.is-selected {
-            background: #eef8e9;
-            border-color: #67c23a;
-            color: #3a7f1b;
+        
+        .grid-settings input {
+            width: 60px;
+            height: 32px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            padding: 0 8px;
         }
-        .warehouse-cell.is-selected::before {
-            border-color: rgba(103,194,58,0.55);
+
+        .path-toolbar {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
-        .warehouse-cell.has-route {
-            box-shadow: inset 0 0 0 2px rgba(103,194,58,0.25);
+        
+        .path-toolbar .btn {
+            min-width: 120px;
         }
-        .warehouse-cell.sim-current {
-            border-color: #f56c6c;
-            background: #fff2f0;
-            color: #c45656;
+        
+        .path-toolbar__status {
+            font-size: 13px;
+            color: #606266;
         }
-        .warehouse-cell.sim-visited {
-            border-color: #c0c4cc;
-            background: #f4f5f7;
+        
+        .path-toolbar__meta {
+            font-size: 13px;
             color: #909399;
         }
-        .warehouse-cell.placeholder {
-            cursor: default;
-            border-style: dashed;
-            border-color: #e0e4eb;
-            background: repeating-linear-gradient(
-                135deg,
-                #f5f7fa,
-                #f5f7fa 6px,
-                #eceff5 6px,
-                #eceff5 12px
-            );
-        }
-        .warehouse-cell.placeholder::before {
-            display: none;
-        }
-        .warehouse-cell__label {
-            line-height: 1.3;
-            word-break: break-all;
-            padding: 0 4px;
-        }
-        .warehouse-cell__badge {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #67c23a;
-            color: #fff;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 6px rgba(103,194,58,0.35);
-        }
-        .warehouse-tooltip {
-            position: absolute;
-            z-index: 40;
-            min-width: 160px;
-            max-width: 220px;
-            padding: 10px 12px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 8px;
-            box-shadow: 0 8px 20px rgba(31, 45, 61, 0.12);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            pointer-events: none;
-        }
-        .warehouse-tooltip__title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #303133;
-            margin-bottom: 4px;
-        }
-        .warehouse-tooltip__meta {
-            font-size: 12px;
-            color: #606266;
-            line-height: 1.4;
-            margin: 0;
-        }
-        .grid-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-top: 16px;
-            font-size: 13px;
+
+        .selection-hint {
+            font-size: 14px;
             color: #606266;
         }
-        .grid-legend__item {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+
+        .shelfBottomNav {
+            width: 88%;
+            margin-top: 30px;
+            border-top: 1px solid #EBEEF5;
+            padding-top: 20px;
         }
-        .grid-legend__marker {
-            width: 14px;
-            height: 14px;
-            border-radius: 3px;
-            border: 1px solid #d4d9e3;
+
+        .shelfNav {
+            border-left: 4px solid #67c23a;
+            margin-left: 2%;
+            margin-right: 2%;
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            float: left;
+            border-radius: 4px;
             background: #f7f8fc;
         }
-        .grid-legend__marker.selected {
-            border-color: #67c23a;
-            background: #eef8e9;
+
+        .shelfNav p {
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
-        .grid-legend__marker.route {
-            border-color: #f08a24;
-            background: #fff3e6;
+
+        .colorBlock {
+            display: inline-block;
+            width: 50px;
+            height: 20px;
+            border: 1px solid #DCDFE6;
+            border-radius: 4px;
+            float: left;
         }
-        .grid-legend__marker.sim {
-            border-color: #f56c6c;
-            background: #fff0ef;
+
+        .colorBlock.notHave {
+            background: #d3d3d3;
         }
+
+        .colorBlock.have {
+            background: #90ee90;
+        }
+
+        .colorBlock.select {
+            background: #f08080;
+        }
+
+        .colorBlock.warning {
+            background: orange;
+        }
+
+        .colorBlockTitle {
+            display: inline-block;
+            height: 20px;
+            line-height: 20px;
+            float: left;
+            margin-left: 10px;
+        }
+
+        .colorBlockNumber {
+            display: inline-block;
+            height: 20px;
+            line-height: 20px;
+            float: left;
+            margin-left: 10px;
+            color: red;
+        }
+
+        .p_Title {
+            display: inline-block;
+            height: 20px;
+            line-height: 20px;
+            float: left;
+        }
+
         .route-panel {
             margin-top: 30px;
             padding: 20px;
             border-radius: 10px;
-            border: 1px solid #ebeef5;
+            border: 1px solid #EBEEF5;
             background: #F8F9FB;
+            clear: both;
         }
+        
         .route-panel h4 {
             font-size: 16px;
-            font-weight: 600;
             margin-bottom: 12px;
+            font-weight: 600;
         }
+        
         .route-panel ol {
             margin-left: 18px;
             color: #606266;
         }
+
         .empty-tip {
             text-align: center;
             color: #909399;
             padding: 40px 0;
         }
+
         .next-step {
             margin-top: 12px;
             font-size: 14px;
             color: #606266;
         }
+        
         .next-step a {
             color: #409EFF;
-        }
-        .entrance-icon {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            padding: 4px 12px 4px 28px;
-            background: rgba(64, 158, 255, 0.92);
-            color: #fff;
-            border-radius: 16px;
-            font-size: 12px;
-            line-height: 1.2;
-            box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35);
-            z-index: 50;
-            pointer-events: none;
-        }
-        .entrance-icon__door {
-            position: absolute;
-            left: 8px;
-            width: 14px;
-            height: 18px;
-            border: 2px solid #fff;
-            border-radius: 2px;
-            box-sizing: border-box;
-        }
-        .entrance-icon__door::after {
-            content: '';
-            position: absolute;
-            right: 3px;
-            top: 7px;
-            width: 3px;
-            height: 3px;
-            border-radius: 50%;
-            background: #fff;
-        }
-        .entrance-icon__text {
-            white-space: nowrap;
         }
     </style>
 </head>
@@ -303,6 +342,12 @@
                 </select>
             </label>
         </div>
+        <div class="grid-settings">
+            <label>每行显示:</label>
+            <input type="number" v-model.number="gridSettings.columns" @change="handleGridSettingsChange" min="1" max="20">
+            <label>最小行数:</label>
+            <input type="number" v-model.number="gridSettings.minRows" @change="handleGridSettingsChange" min="1" max="20">
+        </div>
         <div class="btn-group">
             <button class="btn btn-warning" @click="clearSelections" :disabled="!selectedShelfIds.length && !pathData">清空</button>
         </div>
@@ -312,80 +357,70 @@
     </div>
 
     <div class="path-toolbar">
-        <div class="btn-group">
-            <button class="btn btn-success" @click="startPathfinding" :disabled="selectedShelfIds.length === 0 || !currentAreaId">计算路径</button>
-            <button class="btn btn-primary" @click="startSimulation" :disabled="!canStartSimulation">开始模拟路径</button>
-            <button class="btn btn-default" @click="togglePause" :disabled="!canTogglePause">
-                {{ pathSimulation.paused ? '继续' : '暂停' }}
-            </button>
-            <button class="btn btn-warning" @click="stopSimulation" :disabled="!canStopSimulation">停止模拟</button>
-        </div>
-        <div class="path-toolbar__status">
+        <button class="btn btn-success" @click="startPathfinding" :disabled="selectedShelfIds.length === 0 || !currentAreaId">计算路径</button>
+        <button class="btn btn-primary" @click="startSimulation" :disabled="!canStartSimulation">开始模拟路径</button>
+        <button class="btn btn-default" @click="togglePause" :disabled="!canTogglePause">
+            {{ pathSimulation.paused ? '继续' : '暂停' }}
+        </button>
+        <button class="btn btn-warning" @click="stopSimulation" :disabled="!canStopSimulation">停止模拟</button>
+        <span class="path-toolbar__status" v-if="pathData">
             状态：<strong>{{ pathStatusText }}</strong>
-        </div>
-        <div class="path-toolbar__meta" v-if="pathData && pathData.distance">
+        </span>
+        <span class="path-toolbar__meta" v-if="pathData && pathData.distance">
             预计步数：{{ pathData.distance }}
-        </div>
+        </span>
     </div>
 
-    <div class="warehouse-panel" v-if="displayCells.length">
-        <div class="warehouse-board">
-            <div class="warehouse-board__stage" ref="boardStage">
-                <canvas id="shelfPathCanvas" class="warehouse-board__canvas"></canvas>
-                <div class="warehouse-board__grid" :style="boardGridStyle">
-                    <div
-                        class="warehouse-cell"
-                        v-for="cell in displayCells"
-                        :key="cell.key"
-                        :class="cellClass(cell)"
-                        :data-grid-row="cell.gridRow"
-                        :data-grid-col="cell.gridCol"
-                        @click="cell.shelf && toggleShelfSelection(cell.shelf.shelfId)"
-                        @mouseenter="cell.shelf && showCellTooltip(cell, $event)"
-                        @mouseleave="hideCellTooltip"
-                        :title="cell.shelf ? getShelfTooltip(cell.shelf) : '空位'">
-                        <template v-if="cell.shelf">
-                            <span class="warehouse-cell__label">
-                                {{ shortLabel(cell.shelf.shelfName || cell.shelf.shelfCode || '货架') }}
-                            </span>
-                            <span class="warehouse-cell__badge" v-if="getRouteBadge(cell.shelf.shelfId)">
-                                {{ getRouteBadge(cell.shelf.shelfId) }}
-                            </span>
-                        </template>
-                    </div>
-                </div>
-                <div class="entrance-icon" v-if="entrancePosition" :style="entranceStyle">
-                    <span class="entrance-icon__door"></span>
-                    <span class="entrance-icon__text">入口</span>
-                </div>
-                <div class="warehouse-tooltip" v-if="tooltip.visible" :style="tooltip.style">
-                    <p class="warehouse-tooltip__title">{{ tooltip.title }}</p>
-                    <p class="warehouse-tooltip__meta">{{ tooltip.subtitle }}</p>
-                    <p class="warehouse-tooltip__meta" v-if="tooltip.extra">{{ tooltip.extra }}</p>
-                </div>
+    <div class="bigShelfBox rightBox clearFloat" style="position: relative;" v-if="displayCells.length">
+        <canvas id="shelfPathCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 100;"></canvas>
+        <div class="shelfBox" :style="style[index]" v-for="(cell, index) in displayCells" :key="cell.key">
+            <div class="shelf"
+                 :class="cellClass(cell)"
+                 :data-row="cell.layoutRow"
+                 :data-col="cell.layoutCol"
+                 @contextmenu.prevent="cell.shelf && showContextMenu(cell, $event)"
+                 @click="cell.shelf && toggleShelfSelection(cell.shelf.shelfId)">
+                <span v-if="cell.shelf && getRouteBadge(cell.shelf.shelfId)">
+                    {{ getRouteBadge(cell.shelf.shelfId) }}
+                </span>
             </div>
         </div>
-        <div class="grid-legend">
-            <span class="grid-legend__item">
-                <span class="grid-legend__marker"></span>
-                未选择
-            </span>
-            <span class="grid-legend__item">
-                <span class="grid-legend__marker selected"></span>
-                已选择
-            </span>
-            <span class="grid-legend__item">
-                <span class="grid-legend__marker route"></span>
-                路径顺序
-            </span>
-            <span class="grid-legend__item">
-                <span class="grid-legend__marker sim"></span>
-                模拟提示
-            </span>
+    </div>
+
+    <div class="context-menu" v-if="contextMenu.visible" :style="contextMenu.style" @click.stop>
+        <div class="context-menu__title">{{ contextMenu.title }}</div>
+        <div class="context-menu__item" v-for="item in contextMenu.items" :key="item.label">
+            <span class="context-menu__label">{{ item.label }}:</span>
+            <span class="context-menu__value">{{ item.value }}</span>
         </div>
     </div>
 
-    <div class="empty-tip" v-else>
+    <div class="shelfBottomNav rightBox clearFloat" style="padding: 10px;" v-if="displayCells.length">
+        <div class="shelfNav">
+            <p class="clearFloat">
+                <span class="colorBlock notHave"></span>
+                <span class="colorBlockTitle">空闲</span>
+            </p>
+            <p class="clearFloat">
+                <span class="p_Title">合计</span>
+                <span class="colorBlockTitle">:</span>
+                <span class="colorBlockNumber">{{shelfStats.empty}}</span>
+            </p>
+        </div>
+        <div class="shelfNav">
+            <p class="clearFloat">
+                <span class="colorBlock have"></span>
+                <span class="colorBlockTitle">使用中</span>
+            </p>
+            <p class="clearFloat">
+                <span class="p_Title">合计</span>
+                <span class="colorBlockTitle">:</span>
+                <span class="colorBlockNumber">{{shelfStats.occupied}}</span>
+            </p>
+        </div>
+    </div>
+
+    <div class="empty-tip" v-if="!displayCells.length">
         <span v-if="currentAreaId">当前货区暂无货架数据</span>
         <span v-else>请先选择货区</span>
     </div>
@@ -410,4 +445,3 @@
 <script th:src="@{/ruoyi/in/shelfOverview.js}"></script>
 </body>
 </html>
-

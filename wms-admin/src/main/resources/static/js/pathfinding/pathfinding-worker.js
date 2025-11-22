@@ -324,5 +324,15 @@ function buildFullPath(grid, start, orderedTargets, allowDiagonal) {
         }
     }
     
+    // 添加从最后一个目标返回起点的路径
+    if (orderedTargets.length > 0) {
+        const returnSegment = findShortestPath(grid, current, start, allowDiagonal);
+        if (returnSegment && returnSegment.length > 1) {
+            for (var j = 1; j < returnSegment.length; j++) {
+                fullPath.push(returnSegment[j]);
+            }
+        }
+    }
+    
     return fullPath;
 }
